@@ -1,6 +1,6 @@
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import {StyleSheet, requireNativeComponent, NativeModules, View, ViewPropTypes, Image} from 'react-native';
+import { StyleSheet, requireNativeComponent, NativeModules, View, ViewPropTypes, Image } from 'react-native';
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
 import VideoResizeMode from './VideoResizeMode.js';
 
@@ -27,6 +27,22 @@ export default class Video extends Component {
   seek = (time) => {
     this.setNativeProps({ seek: time });
   };
+
+  //CUSTOM
+  setTimeout = (cb, delay) => {
+    NativeModules[packageName].setTimeout(delay, cb);
+  };
+
+  _onRemoteChange = (event) => {
+    if (this.props.onRemoteChange) {
+      this.props.onRemoteChange(event.nativeEvent);
+    }
+  };
+
+  playLocal = (file, cb) => {
+    NativeModules[packageName].playLocal(file, cb);
+  };
+  //CUSTOM END
 
   presentFullscreenPlayer = () => {
     this.setNativeProps({ fullscreen: true });
@@ -66,7 +82,7 @@ export default class Video extends Component {
 
   _onSeek = (event) => {
     if (this.state.showPoster) {
-      this.setState({showPoster: false});
+      this.setState({ showPoster: false });
     }
 
     if (this.props.onSeek) {
@@ -130,7 +146,7 @@ export default class Video extends Component {
 
   _onPlaybackRateChange = (event) => {
     if (this.state.showPoster && (event.nativeEvent.playbackRate !== 0)) {
-      this.setState({showPoster: false});
+      this.setState({ showPoster: false });
     }
 
     if (this.props.onPlaybackRateChange) {
@@ -209,6 +225,10 @@ export default class Video extends Component {
       onPlaybackRateChange: this._onPlaybackRateChange,
       onAudioFocusChanged: this._onAudioFocusChanged,
       onAudioBecomingNoisy: this._onAudioBecomingNoisy,
+
+      //CUSTOM
+      onRemoteChange: this._onRemoteChange
+      //CUSTOM END
     });
 
     if (this.props.poster && this.state.showPoster) {
@@ -229,7 +249,7 @@ export default class Video extends Component {
           />
           <Image
             style={posterStyle}
-            source={{uri: this.props.poster}}
+            source={{ uri: this.props.poster }}
           />
         </View>
       );
@@ -245,6 +265,15 @@ export default class Video extends Component {
 }
 
 Video.propTypes = {
+  //CUSTOM
+  metadata: PropTypes.object,
+  preload: PropTypes.string,
+
+  onRemoteChange: PropTypes.func,
+  playLocal: PropTypes.func,
+  setTimeout: PropTypes.func,
+  //CUSTOM END
+
   /* Native only */
   src: PropTypes.object,
   seek: PropTypes.number,

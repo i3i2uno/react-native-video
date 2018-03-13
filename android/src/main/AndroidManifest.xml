@@ -1,3 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.brentvatne.react">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL" />
+
+    <application android:icon="@mipmap/ic_launcher">
+        <receiver android:name=".BTReceiver" android:enabled="true">
+            <intent-filter android:priority="1000000000">
+                <action android:name="android.bluetooth.adapter.action.STATE_CHANGED" />
+                <action android:name="android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED" />
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+                <action android:name="android.media.AUDIO_BECOMING_NOISY" />
+                <action android:name="PREVIOUS" />
+                <action android:name="PLAYPAUSE" />
+                <action android:name="NEXT" />
+                <action android:name="GOTOMAIN" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>

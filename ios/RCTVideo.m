@@ -4,6 +4,8 @@
 #import <React/RCTEventDispatcher.h>
 #import <React/UIView+React.h>
 
+@import MediaPlayer;
+
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath = @"playbackLikelyToKeepUp";
 static NSString *const playbackBufferEmptyKeyPath = @"playbackBufferEmpty";
@@ -47,6 +49,14 @@ static NSString *const timedMetadata = @"timedMetadata";
   NSString * _resizeMode;
   BOOL _fullscreenPlayerPresented;
   UIViewController * _presentingViewController;
+
+  //CUSTOM
+  NSDictionary * _metadata;
+  NSString * _preloadSrc;
+  AVPlayerItem *_preload;
+  bool _phoneCall;
+  bool _phoneCall2;
+  //CUSTOM END
 }
 
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher
@@ -83,9 +93,70 @@ static NSString *const timedMetadata = @"timedMetadata";
                                              selector:@selector(applicationWillEnterForeground:)
                                                  name:UIApplicationWillEnterForegroundNotification
                                                object:nil];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(remoteControlEvent:)
+												 name:AVAudioSessionRouteChangeNotification object:nil];
+	  
+    [[NSNotificationCenter defaultCenter] addObserver:self
+											   selector:@selector(remoteControlEvent:)
+												   name:@"RemoteControlEvent" object:nil];
+	  
+    [[NSNotificationCenter defaultCenter] addObserver:self
+											   selector:@selector(remoteControlEvent:)
+												   name:AVAudioSessionInterruptionNotification object:_player];
   }
 
   return self;
+}
+
+- (void)remoteControlEvent:(NSNotification *)event {
+	NSDictionary *userInfo = event.userInfo;
+	
+	if(userInfo){
+		NSNumber *remoteEvent = (NSNumber*)userInfo[@"RemoteEvent"];
+		NSNumber *interruption = (NSNumber*)userInfo[@"AVAudioSessionInterruptionTypeKey"];
+		NSNumber *routeChange = (NSNumber*)userInfo[@"AVAudioSessionRouteChangeReasonKey"];
+		bool others = [[AVAudioSession sharedInstance] secondaryAudioShouldBeSilencedHint];
+		
+		NSInteger val = [remoteEvent integerValue];
+		NSInteger rc = [routeChange integerValue];
+		
+		if (val == UIEventSubtypeRemoteControlPlay) {
+			self.onRemoteChange(@{@"event": @"play"});
+		} else if (val == UIEventSubtypeRemoteControlPause) {
+			self.onRemoteChange(@{@"event": @"pause"});
+		} else if (val == UIEventSubtypeRemoteControlNextTrack) {
+			self.onRemoteChange(@{@"event": @"next"});
+		} else if (val == UIEventSubtypeRemoteControlPreviousTrack) {
+			self.onRemoteChange(@{@"event": @"previous"});
+		} else if (val == UIEventSubtypeRemoteControlTogglePlayPause) {
+			self.onRemoteChange(@{@"event": @"play"});
+		} else if (interruption != NULL) {
+			_phoneCall = true;
+			self.onRemoteChange(@{@"event": @"interruption", @"state": interruption});
+		} else if (routeChange != NULL && others == false) {
+			if (rc == 2) {
+				self.onRemoteChange(@{@"event": @"interruption", @"state": routeChange});
+			} else if(_phoneCall && _phoneCall2) {
+				self.onRemoteChange(@{@"event": @"interruption", @"state": @0});
+				_phoneCall = false;
+				_phoneCall2 = false;
+			} else {
+				_phoneCall2 = true;
+			}
+		}
+	} else {
+		if ([event.object isEqualToString:@"AudioPlay"]){
+			self.onRemoteChange(@{@"event": @"play"});
+		} else if ([event.object isEqualToString:@"AudioPause"]){
+			self.onRemoteChange(@{@"event": @"pause"});
+		} else if ([event.object isEqualToString:@"AudioNext"]){
+			self.onRemoteChange(@{@"event": @"next"});
+		} else if ([event.object isEqualToString:@"AudioPrevious"]){
+			self.onRemoteChange(@{@"event": @"previous"});
+		}
+	}
 }
 
 - (AVPlayerViewController*)createPlayerViewController:(AVPlayer*)player withPlayerItem:(AVPlayerItem*)playerItem {
@@ -270,7 +341,15 @@ static NSString *const timedMetadata = @"timedMetadata";
 {
   [self removePlayerTimeObserver];
   [self removePlayerItemObservers];
-  _playerItem = [self playerItemForSource:source];
+	
+    NSString *uri = [source objectForKey:@"uri"];
+	
+	if(_preloadSrc != NULL && [uri isEqualToString: _preloadSrc]) {
+		_playerItem = _preload;
+	} else {
+		_playerItem = [self playerItemForSource:source];
+	}
+	
   [self addPlayerItemObservers];
 
   [_player pause];
@@ -621,6 +700,47 @@ static NSString *const timedMetadata = @"timedMetadata";
 
 - (void)setRepeat:(BOOL)repeat {
   _repeat = repeat;
+}
+
+- (void)setMetadata:(NSDictionary *)metadata
+{
+	NSURL *artUrl = [NSURL URLWithString:[metadata objectForKey:@"arturl"]];
+	NSString *name = metadata[@"name"];
+	NSString *artist = metadata[@"artist"];
+	NSString *album = metadata[@"album"];
+	NSNumber *dur = metadata[@"dur"];
+	
+	dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+	dispatch_async(queue, ^{
+		NSMutableDictionary *songInfo = [NSMutableDictionary dictionary];
+		UIImage *artworkImage = [UIImage imageWithData:[NSData dataWithContentsOfURL:artUrl]];
+		if(artworkImage)
+		{
+			MPMediaItemArtwork *albumArt = [[MPMediaItemArtwork alloc] initWithImage: artworkImage];
+			[songInfo setValue:albumArt forKey:MPMediaItemPropertyArtwork];
+		}
+		[songInfo setValue:name forKey:MPMediaItemPropertyTitle];
+		[songInfo setValue:artist forKey:MPMediaItemPropertyArtist];
+		[songInfo setValue:album forKey:MPMediaItemPropertyAlbumTitle];
+		[songInfo setValue:dur forKey:MPMediaItemPropertyPlaybackDuration];
+		
+		MPNowPlayingInfoCenter *infoCenter = [MPNowPlayingInfoCenter defaultCenter];
+		infoCenter.nowPlayingInfo = songInfo;
+	});
+}
+
+- (void)setPreload:(NSString *)url
+{
+	if(!([url length]>0)) return;
+	NSURL *soundUrl = [[NSURL alloc] initWithString:url];
+	
+	if(_preloadSrc == NULL || ![url isEqualToString: _preloadSrc]) {
+		NSArray *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies];
+		AVURLAsset *asset = [AVURLAsset URLAssetWithURL:soundUrl options:@{AVURLAssetHTTPCookiesKey : cookies}];
+		
+		_preloadSrc = url;
+		_preload = [AVPlayerItem playerItemWithAsset:asset];
+	}
 }
 
 - (BOOL)getFullscreen
