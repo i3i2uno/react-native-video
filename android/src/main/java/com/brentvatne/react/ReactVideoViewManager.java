@@ -1,7 +1,24 @@
 package com.brentvatne.react;
 
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.AudioManager;
+import android.media.MediaMetadata;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
+import android.view.KeyEvent;
+
 import com.brentvatne.react.ReactVideoView.Events;
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.MapBuilder;
@@ -12,6 +29,13 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.yqritc.scalablevideoview.ScalableType;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
@@ -113,37 +137,28 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     @Override
     @Nullable
     public Map getExportedViewConstants() {
-        return MapBuilder.of(
-                "ScaleNone", Integer.toString(ScalableType.LEFT_TOP.ordinal()),
-                "ScaleToFill", Integer.toString(ScalableType.FIT_XY.ordinal()),
-                "ScaleAspectFit", Integer.toString(ScalableType.FIT_CENTER.ordinal()),
-                "ScaleAspectFill", Integer.toString(ScalableType.CENTER_CROP.ordinal())
-        );
+        return MapBuilder.of("ScaleNone", Integer.toString(ScalableType.LEFT_TOP.ordinal()), "ScaleToFill",
+                Integer.toString(ScalableType.FIT_XY.ordinal()), "ScaleAspectFit",
+                Integer.toString(ScalableType.FIT_CENTER.ordinal()), "ScaleAspectFill",
+                Integer.toString(ScalableType.CENTER_CROP.ordinal()));
     }
 
     @ReactProp(name = PROP_SRC)
     public void setSrc(final ReactVideoView videoView, @Nullable ReadableMap src) {
         int mainVer = src.getInt(PROP_SRC_MAINVER);
         int patchVer = src.getInt(PROP_SRC_PATCHVER);
-        if(mainVer<0) { mainVer = 0; }
-        if(patchVer<0) { patchVer = 0; }
-        if(mainVer>0) {
-            videoView.setSrc(
-                    src.getString(PROP_SRC_URI),
-                    src.getString(PROP_SRC_TYPE),
-                    src.getBoolean(PROP_SRC_IS_NETWORK),
-                    src.getBoolean(PROP_SRC_IS_ASSET),
-                    mainVer,
-                    patchVer
-            );
+        if (mainVer < 0) {
+            mainVer = 0;
         }
-        else {
-            videoView.setSrc(
-                    src.getString(PROP_SRC_URI),
-                    src.getString(PROP_SRC_TYPE),
-                    src.getBoolean(PROP_SRC_IS_NETWORK),
-                    src.getBoolean(PROP_SRC_IS_ASSET)
-            );
+        if (patchVer < 0) {
+            patchVer = 0;
+        }
+        if (mainVer > 0) {
+            videoView.setSrc(src.getString(PROP_SRC_URI), src.getString(PROP_SRC_TYPE),
+                    src.getBoolean(PROP_SRC_IS_NETWORK), src.getBoolean(PROP_SRC_IS_ASSET), mainVer, patchVer);
+        } else {
+            videoView.setSrc(src.getString(PROP_SRC_URI), src.getString(PROP_SRC_TYPE),
+                    src.getBoolean(PROP_SRC_IS_NETWORK), src.getBoolean(PROP_SRC_IS_ASSET));
         }
     }
 
@@ -414,5 +429,6 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public void playLocal(final String file, final Callback cb) {
         //play local file
     }
+
     //CUSTOM END
 }
