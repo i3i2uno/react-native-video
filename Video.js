@@ -4,6 +4,8 @@ import { StyleSheet, requireNativeComponent, NativeModules, View, ViewPropTypes,
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
 import VideoResizeMode from './VideoResizeMode.js';
 
+const packageName = Platform.select({ ios: 'VideoManager', android: 'Video' });
+
 const styles = StyleSheet.create({
   base: {
     overflow: 'hidden',

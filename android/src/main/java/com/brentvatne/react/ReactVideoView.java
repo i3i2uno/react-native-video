@@ -41,7 +41,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         EVENT_END("onVideoEnd"),
         EVENT_STALLED("onPlaybackStalled"),
         EVENT_RESUME("onPlaybackResume"),
-        EVENT_READY_FOR_DISPLAY("onReadyForDisplay");
+        EVENT_READY_FOR_DISPLAY("onReadyForDisplay"),
+        //CUSTOM
+        EVENT_REMOTE_CHANGE("onRemoteChange");
+        //CUSTOM END
 
         private final String mName;
 
@@ -83,6 +86,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private Handler videoControlHandler = new Handler();
     private MediaController mediaController;
 
+    //CUSTOM
+    public static int ViewID;
+    public MediaPlayer mPreload;
+    //CUSTOM END
 
     private String mSrcUriString = null;
     private String mSrcType = "mp4";
@@ -206,6 +213,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     }
 
     public void setSrc(final String uriString, final String type, final boolean isNetwork, final boolean isAsset, final int expansionMainVersion, final int expansionPatchVersion) {
+        ViewID = getId();
 
         mSrcUriString = uriString;
         mSrcType = type;
@@ -222,86 +230,116 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         initializeMediaPlayerIfNeeded();
         mMediaPlayer.reset();
 
-        try {
-            if (isNetwork) {
-                // Use the shared CookieManager to access the cookies
-                // set by WebViews inside the same app
-                CookieManager cookieManager = CookieManager.getInstance();
+        if(mPreload != null && mPreloadString != null && mPreloadString.equals(uriString)) {
+            mMediaPlayer = mPreload;
 
-                Uri parsedUrl = Uri.parse(uriString);
-                Uri.Builder builtUrl = parsedUrl.buildUpon();
+            mMediaPlayer.setScreenOnWhilePlaying(true);
+            mMediaPlayer.setOnVideoSizeChangedListener(this);
+            mMediaPlayer.setOnErrorListener(this);
+            mMediaPlayer.setOnPreparedListener(this);
+            mMediaPlayer.setOnBufferingUpdateListener(this);
+            mMediaPlayer.setOnCompletionListener(this);
+            mMediaPlayer.setOnInfoListener(this);
 
-                String cookie = cookieManager.getCookie(builtUrl.build().toString());
-
-                Map<String, String> headers = new HashMap<String, String>();
-
-                if (cookie != null) {
-                    headers.put("Cookie", cookie);
+            WritableMap src = Arguments.createMap();
+            src.putString(ReactVideoViewManager.PROP_SRC_URI, uriString);
+            src.putString(ReactVideoViewManager.PROP_SRC_TYPE, type);
+            src.putBoolean(ReactVideoViewManager.PROP_SRC_IS_NETWORK, isNetwork);
+            if(mMainVer>0) {
+                src.putInt(ReactVideoViewManager.PROP_SRC_MAINVER, mMainVer);
+                if(mPatchVer>0) {
+                    src.putInt(ReactVideoViewManager.PROP_SRC_PATCHVER, mPatchVer);
                 }
+            }
+            WritableMap event = Arguments.createMap();
+            event.putMap(ReactVideoViewManager.PROP_SRC, src);
+            mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
 
-                setDataSource(uriString);
-            } else if (isAsset) {
-                if (uriString.startsWith("content://")) {
+            onPrepared(mMediaPlayer);
+
+            mPreload = null;
+        } else {
+            try {
+                if (isNetwork) {
+                    // Use the shared CookieManager to access the cookies
+                    // set by WebViews inside the same app
+                    CookieManager cookieManager = CookieManager.getInstance();
+
                     Uri parsedUrl = Uri.parse(uriString);
-                    setDataSource(mThemedReactContext, parsedUrl);
-                } else {
-                    setDataSource(uriString);
-                }
-            } else {
-                ZipResourceFile expansionFile= null;
-                AssetFileDescriptor fd= null;
-                if(mMainVer>0) {
-                    try {
-                        expansionFile = APKExpansionSupport.getAPKExpansionZipFile(mThemedReactContext, mMainVer, mPatchVer);
-                        fd = expansionFile.getAssetFileDescriptor(uriString.replace(".mp4","") + ".mp4");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (NullPointerException e) {
-                        e.printStackTrace();
+                    Uri.Builder builtUrl = parsedUrl.buildUpon();
+
+                    String cookie = cookieManager.getCookie(builtUrl.build().toString());
+
+                    Map<String, String> headers = new HashMap<String, String>();
+
+                    if (cookie != null) {
+                        headers.put("Cookie", cookie);
                     }
-                }
-                if(fd==null) {
-                    int identifier = mThemedReactContext.getResources().getIdentifier(
-                        uriString,
-                        "drawable",
-                        mThemedReactContext.getPackageName()
-                    );
-                    if (identifier == 0) {
-                        identifier = mThemedReactContext.getResources().getIdentifier(
+
+                    setDataSource(uriString);
+                } else if (isAsset) {
+                    if (uriString.startsWith("content://")) {
+                        Uri parsedUrl = Uri.parse(uriString);
+                        setDataSource(mThemedReactContext, parsedUrl);
+                    } else {
+                        setDataSource(uriString);
+                    }
+                } else {
+                    ZipResourceFile expansionFile= null;
+                    AssetFileDescriptor fd= null;
+                    if(mMainVer>0) {
+                        try {
+                            expansionFile = APKExpansionSupport.getAPKExpansionZipFile(mThemedReactContext, mMainVer, mPatchVer);
+                            fd = expansionFile.getAssetFileDescriptor(uriString.replace(".mp4","") + ".mp4");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (NullPointerException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    if(fd==null) {
+                        int identifier = mThemedReactContext.getResources().getIdentifier(
                             uriString,
-                            "raw",
+                            "drawable",
                             mThemedReactContext.getPackageName()
                         );
+                        if (identifier == 0) {
+                            identifier = mThemedReactContext.getResources().getIdentifier(
+                                uriString,
+                                "raw",
+                                mThemedReactContext.getPackageName()
+                            );
+                        }
+                        setRawData(identifier);
                     }
-                    setRawData(identifier);
+                    else {
+                        setDataSource(fd.getFileDescriptor(), fd.getStartOffset(),fd.getLength());
+                    }
                 }
-                else {
-                    setDataSource(fd.getFileDescriptor(), fd.getStartOffset(),fd.getLength());
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+
+            WritableMap src = Arguments.createMap();
+            src.putString(ReactVideoViewManager.PROP_SRC_URI, uriString);
+            src.putString(ReactVideoViewManager.PROP_SRC_TYPE, type);
+            src.putBoolean(ReactVideoViewManager.PROP_SRC_IS_NETWORK, isNetwork);
+            if(mMainVer>0) {
+                src.putInt(ReactVideoViewManager.PROP_SRC_MAINVER, mMainVer);
+                if(mPatchVer>0) {
+                    src.putInt(ReactVideoViewManager.PROP_SRC_PATCHVER, mPatchVer);
                 }
             }
-        } catch (Exception e) {
+            WritableMap event = Arguments.createMap();
+            event.putMap(ReactVideoViewManager.PROP_SRC, src);
+            mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
+
+            try {
+            prepareAsync(this);
+            } catch (Exception e) {
             e.printStackTrace();
-            return;
-        }
-
-        WritableMap src = Arguments.createMap();
-        src.putString(ReactVideoViewManager.PROP_SRC_URI, uriString);
-        src.putString(ReactVideoViewManager.PROP_SRC_TYPE, type);
-        src.putBoolean(ReactVideoViewManager.PROP_SRC_IS_NETWORK, isNetwork);
-        if(mMainVer>0) {
-            src.putInt(ReactVideoViewManager.PROP_SRC_MAINVER, mMainVer);
-            if(mPatchVer>0) {
-                src.putInt(ReactVideoViewManager.PROP_SRC_PATCHVER, mPatchVer);
             }
-        }
-        WritableMap event = Arguments.createMap();
-        event.putMap(ReactVideoViewManager.PROP_SRC, src);
-        mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
-
-        try {
-          prepareAsync(this);
-        } catch (Exception e) {
-          e.printStackTrace();
         }
     }
 
@@ -400,6 +438,20 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         this.mUseNativeControls = controls;
     }
 
+    //CUSTOM
+    public String mPreloadString;
+
+    public void setPreload(final String uriString) throws IOException {
+        if (uriString != null && (mPreloadString == null || !uriString.equals(mPreloadString))) {
+            mPreloadString = uriString;
+            mPreload = new MediaPlayer();
+            mPreload.setAudioStreamType(AudioManager.STREAM_MUSIC);
+
+            mPreload.setDataSource(mPreloadString);
+            mPreload.prepareAsync();
+        }
+    }
+    //END CUSTOM
 
     @Override
     public void onPrepared(MediaPlayer mp) {

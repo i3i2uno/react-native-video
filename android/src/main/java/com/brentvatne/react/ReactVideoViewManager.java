@@ -36,6 +36,54 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public static final String PROP_PLAY_IN_BACKGROUND = "playInBackground";
     public static final String PROP_CONTROLS = "controls";
 
+    //CUSTOM
+    public static final String PROP_METADATA = "metadata";
+    public static final String PROP_PRELOAD = "preload";
+    public static PlayerService mPlayerService;
+    public static RCTEventEmitter mEventEmitter;
+    public Boolean mAudioCall = false;
+    public float prevVol;
+
+    public ReactVideoViewManager(ReactApplicationContext reactContext) {
+        super();
+
+        mPlayerService = new PlayerService();
+        PlayerService.mReactContext = reactContext;
+        PlayerService.mReceiver.context = reactContext;
+
+        Intent i = new Intent(PlayerService.mReactContext, PlayerService.class);
+        PlayerService.mReactContext.startService(i);
+
+        PlayerService.aManager = (AudioManager) PlayerService.mReactContext
+                .getSystemService(PlayerService.mReactContext.AUDIO_SERVICE);
+        PlayerService.aManager.requestAudioFocus(new AudioManager.OnAudioFocusChangeListener() {
+            @Override
+            public void onAudioFocusChange(int focusChange) {
+                WritableMap params = Arguments.createMap();
+                if (focusChange == -2) { //phone
+                    //LOSS -> PAUSE
+                    mAudioCall = true;
+                    params.putBoolean("focus", false);
+                    params.putString("event", "PLAYPAUSE");
+                    PlayerService.mReceiver.sendEvent(params);
+                } else if (focusChange == 1 && mAudioCall == true) {
+                    //GAIN -> PLAY
+                    mAudioCall = false;
+                    params.putBoolean("focus", true);
+                    params.putString("event", "PLAYPAUSE");
+                    PlayerService.mReceiver.sendEvent(params);
+                } else if (focusChange == 1) {
+                    params.putString("event", "NOT_NOISY");
+                    PlayerService.mReceiver.sendEvent(params);
+                } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) { //other app playing volume
+                    params.putString("event", "IS_NOISY");
+                    PlayerService.mReceiver.sendEvent(params);
+                }
+            }
+        }, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+    }
+    //CUSTOM END
+
     @Override
     public String getName() {
         return REACT_CLASS;
@@ -148,4 +196,223 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public void setControls(final ReactVideoView videoView, final boolean controls) {
         videoView.setControls(controls);
     }
+
+    //CUSTOM
+    private class DownloadFilesTask extends AsyncTask<String, Integer, Bitmap> {
+        @Override
+        protected Bitmap doInBackground(String... params) {
+            try {
+                URL url = new URL(params[0]);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setDoInput(true);
+                connection.connect();
+                InputStream input = connection.getInputStream();
+                Bitmap myBitmap = BitmapFactory.decodeStream(input);
+                return myBitmap;
+            } catch (IOException e) {
+                // Log exception
+                return null;
+            }
+        }
+
+        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+        protected void onPostExecute(Bitmap result) {
+            mImage = result;
+            PlayerService.mNote.setLargeIcon(mImage);
+            PlayerService.mNote.setSmallIcon(R.drawable.icon);
+
+            MediaMetadata.Builder mdB = new MediaMetadata.Builder();
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_TITLE, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_ARTIST, cArtist);
+            mdB.putString(MediaMetadata.METADATA_KEY_ALBUM, cAlbum);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, cArtist);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_ART_URI, cImg);
+            mdB.putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, cImg);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, cImg);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, mImage);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_ART, mImage);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON, mImage);
+
+            PlayerService.mSession.setMetadata(mdB.build());
+
+            PlayerService.instance.start();
+        }
+    }
+
+    public static PendingIntent mContentIntent;
+    public static Notification.MediaStyle mStyle;
+    public static Bitmap mImage;
+    public static List<Notification.Action> mActions;
+
+    public String cName;
+    public String cArtist;
+    public String cAlbum;
+    public String cImg;
+    public double cDuration;
+    public Boolean cState;
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @ReactProp(name = PROP_METADATA)
+    public void setMetadata(final ReactVideoView videoView, @Nullable ReadableMap metadata) {
+        String name = metadata.getString("name");
+        String artist = metadata.getString("artist");
+        String album = metadata.getString("album");
+        String img = metadata.getString("arturl");
+        double duration = metadata.getDouble("dur");
+        Boolean state = metadata.getBoolean("isPlaying");
+
+        if (!name.equals(cName) || !artist.equals(cArtist) || !img.equals(cImg) || !state.equals(cState)) {
+
+            cName = name;
+            cArtist = artist;
+            cAlbum = album != null ? album : "none";
+            cImg = img;
+            cState = state;
+            cDuration = duration;
+
+            new DownloadFilesTask().execute(img);
+
+            PlayerService.mNote = new Notification.Builder(PlayerService.mReactContext);
+
+            MediaMetadata.Builder mdB = new MediaMetadata.Builder();
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_TITLE, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_ARTIST, cArtist);
+            mdB.putString(MediaMetadata.METADATA_KEY_ALBUM, cAlbum);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, cArtist);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION, cName);
+            mdB.putString(MediaMetadata.METADATA_KEY_ART_URI, cImg);
+            mdB.putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, cImg);
+            mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, cImg);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, mImage);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_ART, mImage);
+            mdB.putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON, mImage);
+
+            if (PlayerService.mSession == null) {
+                PlayerService.mSession = new MediaSession(PlayerService.mReactContext, "Sunspot");
+
+                PlayerService.mSession.setFlags(
+                        MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
+
+                PlayerService.mSession.setCallback(new MediaSession.Callback() {
+
+                    @Override
+                    public boolean onMediaButtonEvent(final Intent mediaButtonIntent) {
+                        String intentAction = mediaButtonIntent.getAction();
+
+                        WritableMap params = Arguments.createMap();
+
+                        KeyEvent event = mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                        final int code = event.getKeyCode();
+                        final int action = event.getAction();
+
+                        if (action == 1) { //full press
+                            switch (code) {
+                            case KeyEvent.KEYCODE_HEADSETHOOK:
+                                params.putString("event", "PLAYPAUSE");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_NEXT:
+                                params.putString("event", "NEXT");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                                params.putString("event", "PLAYPAUSE");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_PLAY:
+                                params.putString("event", "PLAYPAUSE");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                                params.putString("event", "PLAYPAUSE");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                                params.putString("event", "PREVIOUS");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            case KeyEvent.KEYCODE_MEDIA_STOP:
+                                params.putString("event", "PLAYPAUSE");
+                                PlayerService.mReceiver.sendEvent(params);
+                                break;
+                            }
+                        }
+
+                        return true;
+                    }
+                });
+
+                PlayerService.mSession.setActive(true);
+            }
+
+            mActions = new ArrayList<>();
+            mActions.add(new Notification.Action(R.drawable.ic_fast_rewind_black_24dp, "Previous Song",
+                    PlayerService.previous));
+            mActions.add(new Notification.Action(
+                    state ? R.drawable.ic_pause_black_24dp : R.drawable.ic_play_arrow_black_24dp,
+                    state ? "Pause" : "Play", PlayerService.playPause));
+            mActions.add(
+                    new Notification.Action(R.drawable.ic_fast_forward_black_24dp, "Next Song", PlayerService.next));
+
+            if (mContentIntent == null || mStyle == null) {
+                mContentIntent = PendingIntent.getActivity(PlayerService.mReactContext, 0,
+                        new Intent(PlayerService.mReactContext,
+                                PlayerService.mReactContext.getCurrentActivity().getClass()),
+                        PendingIntent.FLAG_UPDATE_CURRENT);
+                int actionInNote = mActions != null && mActions.size() > 2 ? 1 : 0;
+                mStyle = new Notification.MediaStyle().setShowActionsInCompactView(actionInNote)
+                        .setMediaSession(mPlayerService.mSession.getSessionToken());
+            }
+
+            PlaybackState pbState = new PlaybackState.Builder()
+                    .setActions(PlaybackState.ACTION_PLAY_PAUSE | PlaybackState.ACTION_PLAY | PlaybackState.ACTION_STOP
+                            | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_SKIP_TO_NEXT
+                            | PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                    .setState(state ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, 0, 1.0f).build();
+
+            PlayerService.mSession.setPlaybackState(pbState);
+
+            PlayerService.mNote.setStyle(mStyle).setVisibility(Notification.VISIBILITY_PUBLIC).setUsesChronometer(true)
+                    .setContentTitle(name).setSmallIcon(R.drawable.icon).setLargeIcon(mImage).setContentText(artist)
+                    .setContentIntent(mContentIntent).setWhen(0).setPriority(Notification.PRIORITY_MAX)
+                    .setShowWhen(false).setOngoing(false);
+
+            PlayerService.mSession.setMetadata(mdB.build());
+
+            for (Notification.Action act : mActions) {
+                PlayerService.mNote.addAction(act);
+            }
+
+            PlayerService.instance.start();
+        }
+    }
+
+    @ReactProp(name = PROP_PRELOAD)
+    public void setPreload(final ReactVideoView videoView, final String preurl) throws IOException {
+        videoView.setPreload(preurl);
+    }
+
+    @ReactMethod
+    public void setTimeout(final int delay, final Callback cb) {
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    sleep(delay);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                cb.invoke();
+            }
+        }.start();
+    }
+
+    @ReactMethod
+    public void playLocal(final String file, final Callback cb) {
+        //play local file
+    }
+    //CUSTOM END
 }
