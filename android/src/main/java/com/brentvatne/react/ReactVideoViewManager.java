@@ -71,9 +71,8 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public ReactVideoViewManager(ReactApplicationContext reactContext) {
         super();
 
-        mPlayerService = new PlayerService();
         PlayerService.mReactContext = reactContext;
-        PlayerService.mReceiver.context = reactContext;
+        mPlayerService = new PlayerService();
 
         Intent i = new Intent(PlayerService.mReactContext, PlayerService.class);
         PlayerService.mReactContext.startService(i);
