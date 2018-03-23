@@ -323,9 +323,9 @@ static NSString *const timedMetadata = @"timedMetadata";
  * observer set */
 - (void)removePlayerItemObservers
 {
-  if (_playerLayer) {
-    [_playerLayer removeObserver:self forKeyPath:readyForDisplayKeyPath];
-  }
+//  if (_playerLayer) {
+//    [_playerLayer removeObserver:self forKeyPath:readyForDisplayKeyPath];
+//  }
   if (_playerItemObserversSet) {
     [_playerItem removeObserver:self forKeyPath:statusKeyPath];
     [_playerItem removeObserver:self forKeyPath:playbackBufferEmptyKeyPath];
@@ -851,9 +851,11 @@ static NSString *const timedMetadata = @"timedMetadata";
 
 - (void)removePlayerLayer
 {
-    [_playerLayer removeFromSuperlayer];
-    [_playerLayer removeObserver:self forKeyPath:readyForDisplayKeyPath];
-    _playerLayer = nil;
+	if(_playerLayer != nil) {
+		[_playerLayer removeFromSuperlayer];
+		[_playerLayer removeObserver:self forKeyPath:readyForDisplayKeyPath];
+		_playerLayer = nil;
+	}
 }
 
 #pragma mark - RCTVideoPlayerViewControllerDelegate
