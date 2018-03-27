@@ -233,7 +233,7 @@ export default class Video extends Component {
       //CUSTOM END
     });
 
-    if (this.props.poster && this.state.showPoster) {
+    if (this.props.poster && (this.state.showPoster && this.props.showPoster)) {
       const posterStyle = {
         position: 'absolute',
         left: 0,
