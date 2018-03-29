@@ -34,79 +34,91 @@ public class BTReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context ct, Intent intent) {
-        final String action = intent.getAction();
+        try {
+            final String action = intent.getAction();
 
-        WritableMap params = Arguments.createMap();
-        params.putString("event", action);
+            WritableMap params = Arguments.createMap();
+            params.putString("event", action);
 
-        if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-            final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
-            switch (state) {
-            case BluetoothAdapter.STATE_TURNING_OFF:
-                break;
-            case BluetoothAdapter.STATE_ON:
-                break;
-            case BluetoothAdapter.STATE_TURNING_ON:
-                break;
-            }
-        } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
-            final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
-            switch (state) {
-            case 0: //state off
-                params.putString("event", "STATE_CHANGE");
-                params.putString("state", "OFF");
+            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
+                switch (state) {
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        break;
+                    case BluetoothAdapter.STATE_ON:
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        break;
+                }
+            } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
+                switch (state) {
+                    case 0: //state off
+                        params.putString("event", "STATE_CHANGE");
+                        params.putString("state", "OFF");
+                        sendEvent(params);
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        break;
+                    case 2:
+                        params.putString("event", "STATE_CHANGE");
+                        params.putString("state", "ON");
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        break;
+                }
+            } else if (action.equals("android.intent.action.HEADSET_PLUG")) {
+                final int state = intent.getIntExtra("state", -1);
+                switch (state) {
+                    case 0: //state off
+                        params.putString("event", "STATE_CHANGE");
+                        params.putString("state", "OFF");
+                        sendEvent(params);
+                        break;
+                    case 1:
+                        params.putString("event", "STATE_CHANGE");
+                        params.putString("state", "ON");
+                        break;
+                }
+            } else if (action.equals("PREVIOUS")) {
                 sendEvent(params);
-                break;
-            case BluetoothAdapter.STATE_TURNING_OFF:
-                break;
-            case 2:
-                params.putString("event", "STATE_CHANGE");
-                params.putString("state", "ON");
-                break;
-            case BluetoothAdapter.STATE_TURNING_ON:
-                break;
-            }
-        } else if (action.equals("android.intent.action.HEADSET_PLUG")) {
-            final int state = intent.getIntExtra("state", -1);
-            switch (state) {
-            case 0: //state off
-                params.putString("event", "STATE_CHANGE");
-                params.putString("state", "OFF");
+            } else if (action.equals("PLAYPAUSE")) {
                 sendEvent(params);
-                break;
-            case 1:
-                params.putString("event", "STATE_CHANGE");
-                params.putString("state", "ON");
-                break;
+            } else if (action.equals("NEXT")) {
+                sendEvent(params);
+            } else if (action.equals("GOTOMAIN")) {
+                sendEvent(params);
+            } else if (action.equals("android.media.AUDIO_BECOMING_NOISY")) {
+                sendEvent(params);
+            } else if (action.equals("android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED")) {
+                sendEvent(params);
+            } else {
+                sendEvent(params);
             }
-        } else if (action.equals("PREVIOUS")) {
-            sendEvent(params);
-        } else if (action.equals("PLAYPAUSE")) {
-            sendEvent(params);
-        } else if (action.equals("NEXT")) {
-            sendEvent(params);
-        } else if (action.equals("GOTOMAIN")) {
-            sendEvent(params);
-        } else if (action.equals("android.media.AUDIO_BECOMING_NOISY")) {
-            sendEvent(params);
-        } else if (action.equals("android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED")) {
-            sendEvent(params);
-        } else {
-            sendEvent(params);
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
         }
     }
 
     public void sendEvent(WritableMap params) {
-        if (context != null && context.hasActiveCatalystInstance()) {
-            if (mEventEmitter == null) {
-                mEventEmitter = context.getJSModule(RCTEventEmitter.class);
-            }
+        try {
+            if (context != null && context.hasActiveCatalystInstance()) {
+                if (mEventEmitter == null) {
+                    mEventEmitter = context.getJSModule(RCTEventEmitter.class);
+                }
 
-            if (id == -1) {
-                id = ReactVideoView.ViewID;
-            }
+                if (id == -1) {
+                    id = ReactVideoView.ViewID;
+                }
 
-            mEventEmitter.receiveEvent(id, ReactVideoView.Events.EVENT_REMOTE_CHANGE.toString(), params);
+                mEventEmitter.receiveEvent(id, ReactVideoView.Events.EVENT_REMOTE_CHANGE.toString(), params);
+            }
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
         }
     }
 }

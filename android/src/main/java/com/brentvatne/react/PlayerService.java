@@ -37,32 +37,38 @@ public class PlayerService extends Service {
 
     @Override
     public void onCreate() {
-        super.onCreate();
+        try {
+            super.onCreate();
 
-        instance = this;
+            instance = this;
 
-        mManager = NotificationManagerCompat.from(this);
-        mReceiver = new BTReceiver(mReactContext);
+            mManager = NotificationManagerCompat.from(this);
+            mReceiver = new BTReceiver(mReactContext);
 
-        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        IntentFilter filterHeadset = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
+            IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+            IntentFilter filterHeadset = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
 
-        IntentFilter filterCommands = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);
-        filterCommands.addAction("android.intent.action.MEDIA_BUTTON");
-        filterCommands.setPriority(1000000000);
+            IntentFilter filterCommands = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);
+            filterCommands.addAction("android.intent.action.MEDIA_BUTTON");
+            filterCommands.setPriority(1000000000);
 
-        Intent prevIntent = new Intent("PREVIOUS");
-        previous = PendingIntent.getBroadcast(mReactContext, 1, prevIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Intent prevIntent = new Intent("PREVIOUS");
+            previous = PendingIntent.getBroadcast(mReactContext, 1, prevIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        Intent playPauseIntent = new Intent("PLAYPAUSE");
-        playPause = PendingIntent.getBroadcast(mReactContext, 1, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Intent playPauseIntent = new Intent("PLAYPAUSE");
+            playPause = PendingIntent.getBroadcast(mReactContext, 1, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        Intent nextIntent = new Intent("NEXT");
-        next = PendingIntent.getBroadcast(mReactContext, 1, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Intent nextIntent = new Intent("NEXT");
+            next = PendingIntent.getBroadcast(mReactContext, 1, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        registerReceiver(mReceiver, filter);
-        registerReceiver(mReceiver, filterHeadset);
-        registerReceiver(mReceiver, filterCommands);
+            registerReceiver(mReceiver, filter);
+            registerReceiver(mReceiver, filterHeadset);
+            registerReceiver(mReceiver, filterCommands);
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
+        }
     }
 
     @Override
@@ -72,47 +78,65 @@ public class PlayerService extends Service {
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        stopSelf();
+        try {
+            stopSelf();
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
+        }
     }
 
     @Override
     public void onDestroy() {
-        if (mNote != null) {
-            mNote.setOngoing(false);
-            mNote = null;
-        }
-        if (mManager != null) {
-            mManager.cancel(noteId);
-        }
-        if (mReceiver != null && mReactContext != null) {
-            unregisterReceiver(mReceiver);
-            mReactContext = null;
-        }
-        if (instance != null) {
-            instance.onDestroy();
-            instance = null;
-        }
-        if (mSession != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                mSession.release();
+        try {
+            if (mNote != null) {
+                mNote.setOngoing(false);
+                mNote = null;
             }
-            mSession = null;
+            if (mManager != null) {
+                mManager.cancel(noteId);
+            }
+            if (mReceiver != null && mReactContext != null) {
+                unregisterReceiver(mReceiver);
+                mReactContext = null;
+            }
+            if (instance != null) {
+                instance.onDestroy();
+                instance = null;
+            }
+            if (mSession != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    mSession.release();
+                }
+                mSession = null;
+            }
+
+            aManager = null;
+
+            super.onDestroy();
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
         }
-
-        aManager = null;
-
-        super.onDestroy();
     }
 
     public void start() {
-        Notification note = mNote.build();
-        mManager.notify(noteId, note);
+        try {
+            Notification note = mNote.build();
+            mManager.notify(noteId, note);
 
-        if (!mStarted) {
-            Intent intent = new Intent(mReactContext, PlayerService.class);
-            ContextCompat.startForegroundService(mReactContext, intent);
-            startForeground(noteId, note);
-            mStarted = true;
+            if (!mStarted) {
+                Intent intent = new Intent(mReactContext, PlayerService.class);
+                ContextCompat.startForegroundService(mReactContext, intent);
+                startForeground(noteId, note);
+                mStarted = true;
+            }
+        } catch (Exception err) {
+            Log.d("SSPOT", err.toString());
+            err.printStackTrace();
+            return;
         }
     }
 
