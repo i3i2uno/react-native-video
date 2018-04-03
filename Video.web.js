@@ -101,10 +101,6 @@ export default class RNVideo extends Component {
     };
 
     //CUSTOM
-    setTimeout = (cb, delay) => {
-        setTimeout(cb, delay);
-    };
-
     _onRemoteChange = (event) => {
         if (this.props.onRemoteChange) {
             this.props.onRemoteChange(event.nativeEvent);
