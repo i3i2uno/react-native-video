@@ -31,10 +31,6 @@ export default class Video extends Component {
   };
 
   //CUSTOM
-  setTimeout = (cb, delay) => {
-    NativeModules[packageName].setTimeout(delay, cb);
-  };
-
   _onRemoteChange = (event) => {
     if (this.props.onRemoteChange) {
       this.props.onRemoteChange(event.nativeEvent);
@@ -273,7 +269,6 @@ Video.propTypes = {
 
   onRemoteChange: PropTypes.func,
   playLocal: PropTypes.func,
-  setTimeout: PropTypes.func,
   //CUSTOM END
 
   /* Native only */

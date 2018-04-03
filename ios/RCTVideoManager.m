@@ -56,13 +56,6 @@ RCT_EXPORT_VIEW_PROPERTY(onRemoteChange, RCTBubblingEventBlock);
 //CUSTOM
 RCT_EXPORT_VIEW_PROPERTY(preload, NSString);
 RCT_EXPORT_VIEW_PROPERTY(metadata, NSDictionary);
-RCT_EXPORT_METHOD(setTimeout:(int)_delay : (RCTResponseSenderBlock)cb){
-	int64_t delayInSeconds = _delay / 1000;
-	dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, delayInSeconds * NSEC_PER_SEC);
-	dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
-		cb(@[]);
-	});
-}
 RCT_EXPORT_METHOD(playLocal:(NSString *)file : (RCTResponseSenderBlock)cb){
 	NSString *path = [[NSBundle mainBundle] pathForResource:[@"" stringByAppendingString:file] ofType:@"mp3"];
 	

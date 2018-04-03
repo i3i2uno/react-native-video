@@ -427,21 +427,6 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     }
 
     @ReactMethod
-    public void setTimeout(final int delay, final Callback cb) {
-        new Thread() {
-            @Override
-            public void run() {
-                try {
-                    sleep(delay);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                cb.invoke();
-            }
-        }.start();
-    }
-
-    @ReactMethod
     public void playLocal(final String file, final Callback cb) {
         //play local file
     }
