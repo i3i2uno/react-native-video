@@ -45,12 +45,12 @@ public class PlayerService extends Service {
             mManager = NotificationManagerCompat.from(this);
             mReceiver = new BTReceiver(mReactContext);
 
-            IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-            IntentFilter filterHeadset = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
-
-            IntentFilter filterCommands = new IntentFilter(Intent.ACTION_MEDIA_BUTTON);
-            filterCommands.addAction("android.intent.action.MEDIA_BUTTON");
-            filterCommands.setPriority(1000000000);
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+            filter.addAction(Intent.ACTION_HEADSET_PLUG);
+            filter.addAction(Intent.ACTION_MEDIA_BUTTON);
+            filter.addAction("android.intent.action.MEDIA_BUTTON");
+            filter.setPriority(1000000000);
 
             Intent prevIntent = new Intent("PREVIOUS");
             previous = PendingIntent.getBroadcast(mReactContext, 1, prevIntent, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -62,8 +62,6 @@ public class PlayerService extends Service {
             next = PendingIntent.getBroadcast(mReactContext, 1, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
             registerReceiver(mReceiver, filter);
-            registerReceiver(mReceiver, filterHeadset);
-            registerReceiver(mReceiver, filterCommands);
         } catch (Exception err) {
             Log.d("SSPOT", err.toString());
             err.printStackTrace();
