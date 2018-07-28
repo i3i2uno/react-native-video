@@ -13,8 +13,12 @@ class RCTVideo extends Component {
         super(props);
 
         this.state = {
-            vid: null
+            vid: null,
+            isMounted: true
         }
+    }
+    componentWillUnmount() {
+        this.state.isMounted = false;
     }
     connectVideoToActions(comp) {
         const p = this.props;
@@ -24,18 +28,34 @@ class RCTVideo extends Component {
             state.vid = comp;
 
             state.vid.oncanplay = () => {
-                p.onLoad({ duration: state.vid.duration })
+                p.onVideoLoad({ nativeEvent: { duration: state.vid.duration } })
             }
             state.vid.onloadstart = () => {
-                p.onLoadStart();
+                p.onVideoLoadStart();
             }
             state.vid.onended = () => {
-                p.onEnd({ nativeEvent: null });
+                p.onVideoEnd({ nativeEvent: {} });
             }
             state.vid.onerror = (err) => {
-                p.onError({ error: err });
+                p.onVideoError({ nativeEvent: { error: err } });
             }
-
+            this.startMonitoringProgress.call(this);
+        }
+    }
+    startMonitoringProgress() {
+        if (this.props.onProgress) {
+            const startVideoChecking = () => {
+                if (this.state.isMounted && !this.props.paused) {
+                    this.props.onVideoProgress({
+                        nativeEvent: {
+                            currentTime: this.state.vid.currentTime,
+                            seekableDuration: this.state.vid.duration
+                        }
+                    })
+                    setTimeout(startVideoChecking.bind(this), 1000);
+                }
+            }
+            startVideoChecking();
         }
     }
     componentWillReceiveProps(np) {
@@ -44,6 +64,7 @@ class RCTVideo extends Component {
                 this.state.vid.pause();
             } else {
                 this.state.vid.play();
+                setTimeout(this.startMonitoringProgress.bind(this), 50);
             }
         }
 
@@ -69,11 +90,19 @@ class RCTVideo extends Component {
             <video
                 src={src.uri}
                 style={StyleSheet.flatten([style, { objectFit: resizeMode }])}
-                autoPlay
+                autoPlay={this.props.paused ? false : true}
                 ref={(ref) => { if (!this.state.vid) { this.connectVideoToActions.bind(this)(ref); this.props._ref(ref); } }}
             ></video>
         )
     }
+}
+
+function guid() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    }
+
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
 export default class RNVideo extends Component {
@@ -83,6 +112,7 @@ export default class RNVideo extends Component {
 
         this.state = {
             showPoster: true,
+            tag: guid()
         };
     }
 
@@ -126,25 +156,25 @@ export default class RNVideo extends Component {
 
     _onLoadStart = (event) => {
         if (this.props.onLoadStart) {
-            this.props.onLoadStart(event.nativeEvent);
+            this.props.onLoadStart({ tag: this.state.tag });
         }
     };
 
     _onLoad = (event) => {
         if (this.props.onLoad) {
-            this.props.onLoad(event.nativeEvent);
+            this.props.onLoad(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
 
     _onError = (event) => {
         if (this.props.onError) {
-            this.props.onError(event.nativeEvent);
+            this.props.onError(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
 
     _onProgress = (event) => {
         if (this.props.onProgress) {
-            this.props.onProgress(event.nativeEvent);
+            this.props.onProgress(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
 
@@ -160,13 +190,13 @@ export default class RNVideo extends Component {
 
     _onEnd = (event) => {
         if (this.props.onEnd) {
-            this.props.onEnd(event.nativeEvent);
+            this.props.onEnd(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
 
     _onTimedMetadata = (event) => {
         if (this.props.onTimedMetadata) {
-            this.props.onTimedMetadata(event.nativeEvent);
+            this.props.onTimedMetadata(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
 
@@ -236,7 +266,7 @@ export default class RNVideo extends Component {
 
     _onBuffer = (event) => {
         if (this.props.onBuffer) {
-            this.props.onBuffer(event.nativeEvent);
+            this.props.onBuffer(Object.assign(event.nativeEvent, { tag: this.state.tag }));
         }
     };
     render() {

@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { View } from 'react-native'
+import { View, Platform } from 'react-native'
 import Video from './Video'
 
 export default class VideoFade extends Component {
@@ -11,13 +11,15 @@ export default class VideoFade extends Component {
                 volume: undefined,
                 snap: null,
                 tag: null,
-                queue: {}
+                queue: {},
+                duration: 0
             },
             v2: {
                 volume: undefined,
                 snap: null,
                 tag: null,
-                queue: {}
+                queue: {},
+                duration: 0
             },
             active: 'v1',
             isDual: false,
@@ -29,10 +31,10 @@ export default class VideoFade extends Component {
         this[v] = comp;
     }
     parseEvent = (e, name) => {
-        if (this.props[name] && this.state[this.state.active].tag === e.target) {
+        if (this.props[name] && (this.state[this.state.active].tag === e.tag || Platform.OS === 'android' && name === 'onRemoteChange')) { //android can only has one remotelistener
             this.props[name](e);
         } else {
-            if (name !== 'onProgress') {
+            if (name !== 'onProgress' && name !== 'onRemoteChange') {
                 this.state[this.state.active === 'v1' ? 'v2' : 'v1'].queue[name] = e
             }
         }
@@ -66,17 +68,22 @@ export default class VideoFade extends Component {
 
     //#region player actions
     seek = (time) => {
-        this[this.state.active].seek(time);
+        let player = this[this.state.active];
+        if (player && player.seek) { player.seek(time); }
     }
     playLocal = (file, cb) => {
-        this[this.state.active].playLocal(file, cb);
+        let v = this[this.state.active];
+        if (v && v.playLocal) {
+            v.playLocal(file, cb);
+        }
     }
     onLoadStart = (v, e) => {
-        this.state[v].tag = e.target;
+        this.state[v].tag = e.tag;
 
         this.parseEvent.call(this, e, 'onLoadStart')
     }
     onLoad = (v, e) => {
+        this.state[v].duration = e.duration;
         this.parseEvent.call(this, e, 'onLoad')
     }
     onBuffer = (v, e) => {
@@ -99,8 +106,8 @@ export default class VideoFade extends Component {
         }
     }
     onProgress = (v, e) => {
-        if (v === this.state.active) {
-            const timeLeft = e.playableDuration - e.currentTime;
+        if (v === this.state.active && this.state[this.state.active].duration) {
+            const timeLeft = this.state[this.state.active].duration - e.currentTime;
 
             if (this.props.crossFade && !this.state.startedTrans && timeLeft <= this.state.crossFadeTime) {
 
@@ -112,22 +119,24 @@ export default class VideoFade extends Component {
                     this.props.onEnd();
 
                     if (this.props.onLoad) {
-                        this.props.onLoad(this.state[this.state.active].queue.onLoad)
+                        let ol = this.state[this.state.active].queue.onLoad;
+
+                        if (ol) { this.props.onLoad(ol) }
                     }
                 }
             }
         }
     }
-    onError = (e) => {
+    onError = (v, e) => {
         this.parseEvent.call(this, e, 'onError')
     }
-    onAudioBecomingNoisy = (e) => {
+    onAudioBecomingNoisy = (v, e) => {
         this.parseEvent.call(this, e, 'onAudioBecomingNoisy')
     }
-    onAudioFocusChanged = (e) => {
+    onAudioFocusChanged = (v, e) => {
         this.parseEvent.call(this, e, 'onAudioFocusChanged')
     }
-    onRemoteChange = (e) => {
+    onRemoteChange = (v, e) => {
         this.parseEvent.call(this, e, 'onRemoteChange')
     }
     //#endregion
@@ -141,7 +150,7 @@ export default class VideoFade extends Component {
 
         if (this.state[v].snap) { return this.state[v].snap }
 
-        return Object.assign({}, props, {
+        let ret = Object.assign({}, props, {
             volume: this.state.startedTrans ? this.state[v].volume : this.props.volume,
             onLoad: this.onLoad.bind(this, v),
             onLoadStart: this.onLoadStart.bind(this, v),
@@ -153,8 +162,40 @@ export default class VideoFade extends Component {
             onAudioFocusChanged: this.onAudioFocusChanged.bind(this, v),
             onRemoteChange: this.onRemoteChange.bind(this, v),
             preload: undefined,
-            paused: props.paused ? true : state.active === v ? false : true
-        }, v === state.active ? props.source : { source: { uri: props.preload } });
+            paused: props.paused ? true : state.active === v ? false : true,
+        }, v === state.active ? {
+            source: props.source,
+            // metadata: props.metadata
+        } : {
+            source: { uri: props.preload },
+            // metadata: Platform.OS !== 'android' ? undefined
+        });
+
+        return ret.source.uri ? ret : null;
+    }
+
+    shouldComponentUpdate(np, ns) {
+        const fireEnd = () => {
+            if (this.props.onLoad) {
+                let ol = this.state[this.state.active].queue.onLoad;
+                if (ol) { this.props.onLoad(ol) }
+            }
+        }
+
+        if (this.props.source.uri !== np.source.uri) { //checking for next press, see if it matches the preload, if it does just switch active state then fire onLoad
+            const v1 = this.getNativeProps.call(this, 'v1')
+            const v2 = this.getNativeProps.call(this, 'v2')
+
+            if (v1 && v1.source && np.source.uri === v1.source.uri) {
+                this.state.active = 'v1'
+                fireEnd();
+            } else if (v2 && v2.source && np.source.uri === v2.source.uri) {
+                this.state.active = 'v2'
+                fireEnd();
+            }
+        }
+
+        return true;
     }
 
     render() {
@@ -164,11 +205,11 @@ export default class VideoFade extends Component {
 
         return (
             <View>
-                {v2 && <View style={{ opacity: state.active === 'v2' ? 1.0 : 0.0 }}>
+                <Video ref={comp => this.mountRef.call(this, comp, 'v1')} {...v1} />
+
+                {v2 && <View style={{ position: 'absolute', opacity: state.active === 'v2' ? 1.0 : 0.0 }}>
                     <Video ref={comp => this.mountRef.call(this, comp, 'v2')} {...v2} />
                 </View>}
-
-                <Video ref={comp => this.mountRef.call(this, comp, 'v1')} {...v1} />
             </View>
         )
     }

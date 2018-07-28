@@ -12,6 +12,14 @@ const styles = StyleSheet.create({
   },
 });
 
+function guid() {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+  }
+
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+}
+
 export default class Video extends Component {
 
   constructor(props) {
@@ -19,6 +27,7 @@ export default class Video extends Component {
 
     this.state = {
       showPoster: true,
+      tag: guid()
     };
   }
 
@@ -33,7 +42,7 @@ export default class Video extends Component {
   //CUSTOM
   _onRemoteChange = (event) => {
     if (this.props.onRemoteChange) {
-      this.props.onRemoteChange(event.nativeEvent);
+      this.props.onRemoteChange(Object.assign(event.nativeEvent, { tag: this.state.tag }));
     }
   };
 
@@ -56,25 +65,25 @@ export default class Video extends Component {
 
   _onLoadStart = (event) => {
     if (this.props.onLoadStart) {
-      this.props.onLoadStart(event.nativeEvent);
+      this.props.onLoadStart(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onLoad = (event) => {
     if (this.props.onLoad) {
-      this.props.onLoad(event.nativeEvent);
+      this.props.onLoad(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onError = (event) => {
     if (this.props.onError) {
-      this.props.onError(event.nativeEvent);
+      this.props.onError(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onProgress = (event) => {
     if (this.props.onProgress) {
-      this.props.onProgress(event.nativeEvent);
+      this.props.onProgress(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
@@ -84,61 +93,61 @@ export default class Video extends Component {
     }
 
     if (this.props.onSeek) {
-      this.props.onSeek(event.nativeEvent);
+      this.props.onSeek(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onEnd = (event) => {
     if (this.props.onEnd) {
-      this.props.onEnd(event.nativeEvent);
+      this.props.onEnd(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onTimedMetadata = (event) => {
     if (this.props.onTimedMetadata) {
-      this.props.onTimedMetadata(event.nativeEvent);
+      this.props.onTimedMetadata(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onFullscreenPlayerWillPresent = (event) => {
     if (this.props.onFullscreenPlayerWillPresent) {
-      this.props.onFullscreenPlayerWillPresent(event.nativeEvent);
+      this.props.onFullscreenPlayerWillPresent(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onFullscreenPlayerDidPresent = (event) => {
     if (this.props.onFullscreenPlayerDidPresent) {
-      this.props.onFullscreenPlayerDidPresent(event.nativeEvent);
+      this.props.onFullscreenPlayerDidPresent(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onFullscreenPlayerWillDismiss = (event) => {
     if (this.props.onFullscreenPlayerWillDismiss) {
-      this.props.onFullscreenPlayerWillDismiss(event.nativeEvent);
+      this.props.onFullscreenPlayerWillDismiss(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onFullscreenPlayerDidDismiss = (event) => {
     if (this.props.onFullscreenPlayerDidDismiss) {
-      this.props.onFullscreenPlayerDidDismiss(event.nativeEvent);
+      this.props.onFullscreenPlayerDidDismiss(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onReadyForDisplay = (event) => {
     if (this.props.onReadyForDisplay) {
-      this.props.onReadyForDisplay(event.nativeEvent);
+      this.props.onReadyForDisplay(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onPlaybackStalled = (event) => {
     if (this.props.onPlaybackStalled) {
-      this.props.onPlaybackStalled(event.nativeEvent);
+      this.props.onPlaybackStalled(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onPlaybackResume = (event) => {
     if (this.props.onPlaybackResume) {
-      this.props.onPlaybackResume(event.nativeEvent);
+      this.props.onPlaybackResume(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
@@ -148,7 +157,7 @@ export default class Video extends Component {
     }
 
     if (this.props.onPlaybackRateChange) {
-      this.props.onPlaybackRateChange(event.nativeEvent);
+      this.props.onPlaybackRateChange(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
@@ -160,13 +169,13 @@ export default class Video extends Component {
 
   _onAudioFocusChanged = (event) => {
     if (this.props.onAudioFocusChanged) {
-      this.props.onAudioFocusChanged(event.nativeEvent);
+      this.props.onAudioFocusChanged(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
   _onBuffer = (event) => {
     if (this.props.onBuffer) {
-      this.props.onBuffer(event.nativeEvent);
+      this.props.onBuffer(Object.assign(event.nativeEvent, { tag: this.state.tag }));;
     }
   };
 
