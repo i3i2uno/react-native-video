@@ -1,18 +1,20 @@
 package com.brentvatne.react;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.session.MediaSession;
 import android.os.Build;
 import android.os.IBinder;
-import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -20,9 +22,10 @@ import com.facebook.react.bridge.ReactApplicationContext;
 public class PlayerService extends Service {
 
     public static PlayerService instance;
-    static NotificationManagerCompat mManager;
-    static Notification.Builder mNote;
+    static NotificationManager mManager;
+    static NotificationCompat.Builder mNote;
     static int noteId = 1326;
+    public static String CHANNEL_ID = "Sunspot_01";
     public static BTReceiver mReceiver;
     public static MediaSession mSession;
     public static AudioManager aManager;
@@ -42,7 +45,7 @@ public class PlayerService extends Service {
 
             instance = this;
 
-            mManager = NotificationManagerCompat.from(this);
+            mManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             mReceiver = new BTReceiver(mReactContext);
 
             IntentFilter filter = new IntentFilter();
@@ -54,12 +57,16 @@ public class PlayerService extends Service {
 
             Intent prevIntent = new Intent("PREVIOUS");
             previous = PendingIntent.getBroadcast(mReactContext, 1, prevIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            filter.addAction("PREVIOUS");
 
             Intent playPauseIntent = new Intent("PLAYPAUSE");
-            playPause = PendingIntent.getBroadcast(mReactContext, 1, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            playPause = PendingIntent.getBroadcast(mReactContext, 1, playPauseIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT);
+            filter.addAction("PLAYPAUSE");
 
             Intent nextIntent = new Intent("NEXT");
             next = PendingIntent.getBroadcast(mReactContext, 1, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            filter.addAction("NEXT");
 
             registerReceiver(mReceiver, filter);
         } catch (Exception err) {
@@ -122,6 +129,16 @@ public class PlayerService extends Service {
 
     public void start() {
         try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                CharSequence name = "Sunspot";
+                String Description = "Sunspot Channel";
+                int importance = NotificationManager.IMPORTANCE_LOW;
+                NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, name, importance);
+                mChannel.setDescription(Description);
+                mChannel.setShowBadge(false);
+                mManager.createNotificationChannel(mChannel);
+            }
+
             Notification note = mNote.build();
             mManager.notify(noteId, note);
 

@@ -12,6 +12,8 @@ import android.media.session.PlaybackState;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 
@@ -31,6 +33,8 @@ import com.yqritc.scalablevideoview.ScalableType;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -221,12 +225,23 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
         @Override
         protected Bitmap doInBackground(String... params) {
             try {
-                URL url = new URL(params[0]);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setDoInput(true);
-                connection.connect();
-                InputStream input = connection.getInputStream();
-                Bitmap myBitmap = BitmapFactory.decodeStream(input);
+                String path = params[0];
+                Boolean isLocal = path.startsWith("file://") ? true : false;
+                Bitmap myBitmap;
+
+                if(isLocal) {
+                    File f = new File(path.replace("file://", ""));
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                    myBitmap = BitmapFactory.decodeStream(new FileInputStream(f), null, options);
+                } else {
+                    URL url = new URL(path);
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setDoInput(true);
+                    connection.connect();
+                    InputStream input = connection.getInputStream();
+                    myBitmap = BitmapFactory.decodeStream(input);
+                }
                 return myBitmap;
             } catch (IOException e) {
                 Log.d("SSPOT", e.toString());
@@ -268,9 +283,9 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     }
 
     public static PendingIntent mContentIntent;
-    public static Notification.MediaStyle mStyle;
+    public static android.support.v4.media.app.NotificationCompat.MediaStyle mStyle;
     public static Bitmap mImage;
-    public static List<Notification.Action> mActions;
+    public static List<NotificationCompat.Action.Builder> mActions;
 
     public String cName;
     public String cArtist;
@@ -301,7 +316,11 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
 
                 new DownloadFilesTask().execute(img);
 
-                PlayerService.mNote = new Notification.Builder(PlayerService.mReactContext);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    PlayerService.mNote = new NotificationCompat.Builder(PlayerService.mReactContext, PlayerService.CHANNEL_ID);
+                } else {
+                    PlayerService.mNote = new NotificationCompat.Builder(PlayerService.mReactContext);
+                }
 
                 MediaMetadata.Builder mdB = new MediaMetadata.Builder();
                 mdB.putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, cName);
@@ -375,14 +394,14 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
                     PlayerService.mSession.setActive(true);
                 }
 
-                mActions = new ArrayList<>();
-                mActions.add(new Notification.Action(R.drawable.ic_fast_rewind_black_24dp, "Previous Song",
+                mActions = new ArrayList<NotificationCompat.Action.Builder>();
+                mActions.add(new NotificationCompat.Action.Builder(R.drawable.ic_fast_rewind_black_24dp, "Previous Song",
                         PlayerService.previous));
-                mActions.add(new Notification.Action(
+                mActions.add(new NotificationCompat.Action.Builder(
                         state ? R.drawable.ic_pause_black_24dp : R.drawable.ic_play_arrow_black_24dp,
                         state ? "Pause" : "Play", PlayerService.playPause));
                 mActions.add(
-                        new Notification.Action(R.drawable.ic_fast_forward_black_24dp, "Next Song", PlayerService.next));
+                        new NotificationCompat.Action.Builder(R.drawable.ic_fast_forward_black_24dp, "Next Song", PlayerService.next));
 
                 if (mContentIntent == null || mStyle == null) {
                     mContentIntent = PendingIntent.getActivity(PlayerService.mReactContext, 0,
@@ -390,8 +409,8 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
                                     PlayerService.mReactContext.getCurrentActivity().getClass()),
                             PendingIntent.FLAG_UPDATE_CURRENT);
                     int actionInNote = mActions != null && mActions.size() > 2 ? 1 : 0;
-                    mStyle = new Notification.MediaStyle().setShowActionsInCompactView(actionInNote)
-                            .setMediaSession(mPlayerService.mSession.getSessionToken());
+                    mStyle = new android.support.v4.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(actionInNote)
+                            .setMediaSession(MediaSessionCompat.Token.fromToken(mPlayerService.mSession.getSessionToken()));
                 }
 
                 PlaybackState pbState = new PlaybackState.Builder()
@@ -409,8 +428,8 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
 
                 PlayerService.mSession.setMetadata(mdB.build());
 
-                for (Notification.Action act : mActions) {
-                    PlayerService.mNote.addAction(act);
+                for (NotificationCompat.Action.Builder act : mActions) {
+                    PlayerService.mNote.addAction(act.build());
                 }
 
                 PlayerService.instance.start();
