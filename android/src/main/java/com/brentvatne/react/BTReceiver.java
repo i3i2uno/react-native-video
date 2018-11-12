@@ -43,42 +43,42 @@ public class BTReceiver extends BroadcastReceiver {
             if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
                 switch (state) {
-                    case BluetoothAdapter.STATE_TURNING_OFF:
-                        break;
-                    case BluetoothAdapter.STATE_ON:
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_ON:
-                        break;
+                case BluetoothAdapter.STATE_TURNING_OFF:
+                    break;
+                case BluetoothAdapter.STATE_ON:
+                    break;
+                case BluetoothAdapter.STATE_TURNING_ON:
+                    break;
                 }
             } else if (action.equals(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothAdapter.ERROR);
                 switch (state) {
-                    case 0: //state off
-                        params.putString("event", "STATE_CHANGE");
-                        params.putString("state", "OFF");
-                        sendEvent(params);
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_OFF:
-                        break;
-                    case 2:
-                        params.putString("event", "STATE_CHANGE");
-                        params.putString("state", "ON");
-                        break;
-                    case BluetoothAdapter.STATE_TURNING_ON:
-                        break;
+                case 0: // state off
+                    params.putString("event", "STATE_CHANGE");
+                    params.putString("state", "OFF");
+                    sendEvent(params);
+                    break;
+                case BluetoothAdapter.STATE_TURNING_OFF:
+                    break;
+                case 2:
+                    params.putString("event", "STATE_CHANGE");
+                    params.putString("state", "ON");
+                    break;
+                case BluetoothAdapter.STATE_TURNING_ON:
+                    break;
                 }
             } else if (action.equals("android.intent.action.HEADSET_PLUG")) {
                 final int state = intent.getIntExtra("state", -1);
                 switch (state) {
-                    case 0: //state off
-                        params.putString("event", "STATE_CHANGE");
-                        params.putString("state", "OFF");
-                        sendEvent(params);
-                        break;
-                    case 1:
-                        params.putString("event", "STATE_CHANGE");
-                        params.putString("state", "ON");
-                        break;
+                case 0: // state off
+                    params.putString("event", "STATE_CHANGE");
+                    params.putString("state", "OFF");
+                    sendEvent(params);
+                    break;
+                case 1:
+                    params.putString("event", "STATE_CHANGE");
+                    params.putString("state", "ON");
+                    break;
                 }
             } else if (action.equals("PREVIOUS")) {
                 sendEvent(params);
@@ -104,7 +104,7 @@ public class BTReceiver extends BroadcastReceiver {
 
     public void sendEvent(WritableMap params) {
         try {
-            if (context != null && context.hasActiveCatalystInstance()) {
+            if (context != null) {
                 if (mEventEmitter == null) {
                     mEventEmitter = context.getJSModule(RCTEventEmitter.class);
                 }
