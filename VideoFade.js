@@ -168,7 +168,7 @@ export default class VideoFade extends Component {
             // metadata: props.metadata
         } : {
             source: { uri: props.preload },
-            // metadata: Platform.OS !== 'android' ? undefined
+            metadata: undefined
         });
 
         return ret.source.uri ? ret : null;
