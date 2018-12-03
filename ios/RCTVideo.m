@@ -698,10 +698,16 @@ static NSString *const timedMetadata = @"timedMetadata";
 	NSString *artist = metadata[@"artist"];
 	NSString *album = metadata[@"album"];
 	NSNumber *dur = metadata[@"dur"];
+	NSNumber *currentTime = metadata[@"currentTime"];
+	int *isPlaying = [[metadata objectForKey:@"isPlaying"] intValue];
+	bool playing = isPlaying == 1 ? true : false;
+	float playbackRate = playing ? 1.0f : 0.0f;
 	
 	dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
 	dispatch_async(queue, ^{
 		NSMutableDictionary *songInfo = [NSMutableDictionary dictionary];
+		MPNowPlayingInfoCenter *infoCenter = [MPNowPlayingInfoCenter defaultCenter];
+		
 		UIImage *artworkImage = [UIImage imageWithData:[NSData dataWithContentsOfURL:artUrl]];
 		if(artworkImage)
 		{
@@ -712,8 +718,9 @@ static NSString *const timedMetadata = @"timedMetadata";
 		[songInfo setValue:artist forKey:MPMediaItemPropertyArtist];
 		[songInfo setValue:album forKey:MPMediaItemPropertyAlbumTitle];
 		[songInfo setValue:dur forKey:MPMediaItemPropertyPlaybackDuration];
+		[songInfo setObject:[NSNumber numberWithFloat:playbackRate] forKey:MPNowPlayingInfoPropertyPlaybackRate];
+		[songInfo setValue:currentTime forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
 		
-		MPNowPlayingInfoCenter *infoCenter = [MPNowPlayingInfoCenter defaultCenter];
 		infoCenter.nowPlayingInfo = songInfo;
 	});
 }
