@@ -54,8 +54,6 @@ static NSString *const timedMetadata = @"timedMetadata";
   NSDictionary * _metadata;
   NSString * _preloadSrc;
   AVPlayerItem *_preload;
-  bool _phoneCall;
-  bool _phoneCall2;
   //CUSTOM END
 }
 
@@ -133,18 +131,9 @@ static NSString *const timedMetadata = @"timedMetadata";
 		} else if (val == UIEventSubtypeRemoteControlTogglePlayPause) {
 			self.onRemoteChange(@{@"event": @"play"});
 		} else if (interruption != NULL) {
-			_phoneCall = true;
-			self.onRemoteChange(@{@"event": @"interruption", @"state": interruption});
-		} else if (routeChange != NULL && others == false) {
-			if (rc == 2) {
-				self.onRemoteChange(@{@"event": @"interruption", @"state": routeChange});
-			} else if(_phoneCall && _phoneCall2) {
-				self.onRemoteChange(@{@"event": @"interruption", @"state": @0});
-				_phoneCall = false;
-				_phoneCall2 = false;
-			} else {
-				_phoneCall2 = true;
-			}
+			self.onRemoteChange(@{@"event": @"interruption", @"state": interruption, @"routeChange": routeChange != NULL ? routeChange : @-1});
+		} else if (routeChange != NULL) {
+			self.onRemoteChange(@{@"event": @"interruption", @"state": @-1, @"routeChange": routeChange});
 		}
 	} else {
 		if ([event.object isEqualToString:@"AudioPlay"]){
