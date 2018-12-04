@@ -80,14 +80,14 @@ export default class VideoFade extends Component {
     onLoadStart = (v, e) => {
         this.state[v].tag = e.tag;
 
-        this.parseEvent.call(this, e, 'onLoadStart')
+        this.parseEvent(e, 'onLoadStart')
     }
     onLoad = (v, e) => {
         this.state[v].duration = e.duration;
-        this.parseEvent.call(this, e, 'onLoad')
+        this.parseEvent(e, 'onLoad')
     }
     onBuffer = (v, e) => {
-        this.parseEvent.call(this, e, 'onBuffer')
+        this.parseEvent(e, 'onBuffer')
     }
     onEnd = (v, e) => {
         if (!this.props.crossFade) {
@@ -102,7 +102,7 @@ export default class VideoFade extends Component {
                 }
             }
         } else {
-            this.parseEvent.call(this, e, 'onEnd')
+            this.parseEvent(e, 'onEnd')
         }
     }
     onProgress = (v, e) => {
@@ -111,7 +111,7 @@ export default class VideoFade extends Component {
 
             if (this.props.crossFade && !this.state.startedTrans && timeLeft <= this.state.crossFadeTime) {
 
-                this.state[this.state.active].snap = this.getNativeProps.call(this, this.state.active);
+                this.state[this.state.active].snap = this.getNativeProps(this.state.active);
                 this.state.active = this.state.active === 'v1' ? 'v2' : 'v1';
                 this.startFade.call(this);
 
@@ -128,20 +128,20 @@ export default class VideoFade extends Component {
         }
     }
     onError = (v, e) => {
-        this.parseEvent.call(this, e, 'onError')
+        this.parseEvent(e, 'onError')
     }
     onAudioBecomingNoisy = (v, e) => {
-        this.parseEvent.call(this, e, 'onAudioBecomingNoisy')
+        this.parseEvent(e, 'onAudioBecomingNoisy')
     }
     onAudioFocusChanged = (v, e) => {
-        this.parseEvent.call(this, e, 'onAudioFocusChanged')
+        this.parseEvent(e, 'onAudioFocusChanged')
     }
     onRemoteChange = (v, e) => {
-        this.parseEvent.call(this, e, 'onRemoteChange')
+        this.parseEvent(e, 'onRemoteChange')
     }
     //#endregion
 
-    getNativeProps(v) {
+    getNativeProps = (v) => {
         const { state, props } = this;
 
         if (!state.isDual && props.preload) {
@@ -168,7 +168,7 @@ export default class VideoFade extends Component {
             // metadata: props.metadata
         } : {
             source: { uri: props.preload },
-            metadata: undefined
+            // metadata: undefined
         });
 
         return ret.source.uri ? ret : null;
@@ -183,8 +183,8 @@ export default class VideoFade extends Component {
         }
 
         if (this.props.source.uri !== np.source.uri) { //checking for next press, see if it matches the preload, if it does just switch active state then fire onLoad
-            const v1 = this.getNativeProps.call(this, 'v1')
-            const v2 = this.getNativeProps.call(this, 'v2')
+            const v1 = this.getNativeProps('v1')
+            const v2 = this.getNativeProps('v2')
 
             if (v1 && v1.source && np.source.uri === v1.source.uri) {
                 this.state.active = 'v1'
@@ -200,15 +200,15 @@ export default class VideoFade extends Component {
 
     render() {
         const state = this.state;
-        const v1 = this.getNativeProps.call(this, 'v1');
-        const v2 = state.isDual ? this.getNativeProps.call(this, 'v2') : null;
+        const v1 = this.getNativeProps('v1');
+        const v2 = state.isDual ? this.getNativeProps('v2') : null;
 
         return (
             <View>
-                <Video ref={comp => this.mountRef.call(this, comp, 'v1')} {...v1} />
+                <Video ref={comp => this.mountRef(comp, 'v1')} {...v1} />
 
                 {v2 && <View style={{ position: 'absolute', opacity: state.active === 'v2' ? 1.0 : 0.0 }}>
-                    <Video ref={comp => this.mountRef.call(this, comp, 'v2')} {...v2} />
+                    <Video ref={comp => this.mountRef(comp, 'v2')} {...v2} />
                 </View>}
             </View>
         )
