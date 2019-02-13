@@ -107,7 +107,6 @@ public class PlayerService extends Service {
                 mReactContext = null;
             }
             if (instance != null) {
-                instance.onDestroy();
                 instance = null;
             }
             if (mSession != null) {
